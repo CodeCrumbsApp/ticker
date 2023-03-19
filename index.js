@@ -49,7 +49,7 @@
 							track.style.justifyContent = 'flex-end'
 						}
 					} else if (listWidth >= windowWidth) {
-						const cloneNumber = 1
+						const cloneNumber = 2
 
 						for (let i = 0; i < cloneNumber; i++) {
 							const listClone = list.cloneNode(true)
