@@ -2,93 +2,122 @@
 	global.Ticker = function ({ tickerSelector = '.cc-ticker' }) {
 		const tracks = document.querySelectorAll(tickerSelector)
 
-		tracks.forEach((track) => {
-			const list = track.firstElementChild
-			const listWidth = list.clientWidth
-			const windowWidth = window.innerWidth
-			const gap = parseInt(track.getAttribute('cc-ticker-gap')) || 0
-			const speed = parseFloat(track.getAttribute('cc-ticker-speed')) || 10
-			const pauseOnHover =
-				track.getAttribute('cc-ticker-pause') === 'true' || false
-			const reverse =
-				track.getAttribute('cc-ticker-reverse') === 'true' || false
-			let isPaused = false
+		let animationFrameIDs = new Map()
+		let resizeTimeout
 
-			function setGap(element, gap) {
-				element.setAttribute('style', `gap: ${gap}px;`)
-			}
+		function initializeTicker() {
+			tracks.forEach((track) => {
+				const list = track.firstElementChild
+				const gap = parseInt(track.getAttribute('cc-ticker-gap')) || 0
+				const speed = parseFloat(track.getAttribute('cc-ticker-speed')) || 10
+				const pauseOnHover =
+					track.getAttribute('cc-ticker-pause') === 'true' || false
+				const reverse =
+					track.getAttribute('cc-ticker-reverse') === 'true' || false
+				let isPaused = false
 
-			function cloneList() {
-				setGap(list, gap)
+				function setGap(element, gap) {
+					element.setAttribute('style', `gap: ${gap}px;`)
+				}
 
-				if (listWidth < windowWidth) {
-					const cloneNumber = Math.round((windowWidth * 2) / listWidth - 1)
+				function cloneList() {
+					setGap(list, gap)
 
-					for (let i = 0; i < cloneNumber; i++) {
-						const listClone = list.cloneNode(true)
+					const windowWidth = window.innerWidth
+					const listWidth = list.clientWidth
+
+					// Remove existing clones
+					Array.from(track.children)
+						.slice(1)
+						.forEach((listClone) => track.removeChild(listClone))
+
+					if (listWidth < windowWidth) {
+						const cloneNumber = Math.round((windowWidth * 2) / listWidth - 1)
+
+						for (let i = 0; i < cloneNumber; i++) {
+							const listClone = list.cloneNode(true)
+
+							if (reverse) {
+								track.insertBefore(listClone, track.firstElementChild)
+							} else {
+								track.appendChild(listClone)
+							}
+						}
+						setGap(track, gap)
 
 						if (reverse) {
-							track.insertBefore(listClone, track.firstElementChild)
-						} else {
-							track.appendChild(listClone)
+							track.style.justifyContent = 'flex-end'
 						}
-					}
-					setGap(track, gap)
-
-					if (reverse) {
-						track.style.justifyContent = 'flex-end'
 					}
 				}
-			}
 
-			function animate(timestamp, prevTimestamp) {
-				if (!prevTimestamp) prevTimestamp = timestamp
+				function animate(timestamp, prevTimestamp) {
+					const listWidth = list.clientWidth
 
-				if (!isPaused) {
-					const progress = timestamp - prevTimestamp
-					const xOffset = (progress * listWidth) / (speed * 1000)
-					// Positive value for reverse, negative value for normal direction
-					const direction = reverse ? 1 : -1
-					const tickerLists = Array.from(track.children)
+					if (!prevTimestamp) prevTimestamp = timestamp
 
-					tickerLists.forEach((list) => {
-						const newX =
-							(parseFloat(list.style.transform.split('(')[1]) || 0) +
-							direction * xOffset
+					if (!isPaused) {
+						const progress = timestamp - prevTimestamp
+						const xOffset = (progress * listWidth) / (speed * 1000)
+						const direction = reverse ? 1 : -1
+						const tickerLists = Array.from(track.children)
 
-						if (reverse) {
-							if (newX >= listWidth + gap * 3) {
-								list.style.transform = 'translateX(0px)'
+						tickerLists.forEach((list) => {
+							const newX =
+								(parseFloat(list.style.transform.split('(')[1]) || 0) +
+								direction * xOffset
+
+							if (reverse) {
+								if (newX >= listWidth + gap) {
+									list.style.transform = 'translateX(0px)'
+								} else {
+									list.style.transform = `translateX(${newX}px)`
+								}
 							} else {
-								list.style.transform = `translateX(${newX}px)`
+								if (newX <= -(listWidth + gap)) {
+									list.style.transform = 'translateX(0px)'
+								} else {
+									list.style.transform = `translateX(${newX}px)`
+								}
 							}
-						} else {
-							if (newX <= -(listWidth + gap * 3)) {
-								list.style.transform = 'translateX(0px)'
-							} else {
-								list.style.transform = `translateX(${newX}px)`
-							}
-						}
+						})
+					}
+
+					const frameID = requestAnimationFrame((newTimestamp) =>
+						animate(newTimestamp, timestamp)
+					)
+					animationFrameIDs.set(track, frameID)
+				}
+
+				if (pauseOnHover) {
+					track.addEventListener('mouseenter', () => {
+						isPaused = true
+					})
+
+					track.addEventListener('mouseleave', () => {
+						isPaused = false
 					})
 				}
 
-				requestAnimationFrame((newTimestamp) =>
-					animate(newTimestamp, timestamp)
-				)
-			}
+				cloneList()
+				requestAnimationFrame(animate)
+			})
+		}
 
-			if (pauseOnHover) {
-				track.addEventListener('mouseenter', () => {
-					isPaused = true
-				})
+		initializeTicker()
 
-				track.addEventListener('mouseleave', () => {
-					isPaused = false
-				})
-			}
+		window.addEventListener('resize', () => {
+			clearTimeout(resizeTimeout)
+			resizeTimeout = setTimeout(() => {
+				// Cancel previous animations
+				for (const frameID of animationFrameIDs.values()) {
+					cancelAnimationFrame(frameID)
+				}
+				animationFrameIDs.clear()
 
-			cloneList()
-			requestAnimationFrame(animate)
+				// Re-initialize the ticker
+				initializeTicker()
+			}, 200)
 		})
 	}
 })((globalThis.CodeCrumbs = globalThis.CodeCrumbs || {}))
