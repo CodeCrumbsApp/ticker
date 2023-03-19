@@ -48,6 +48,23 @@
 						if (reverse) {
 							track.style.justifyContent = 'flex-end'
 						}
+					} else if (listWidth > windowWidth) {
+						const cloneNumber = 1
+
+						for (let i = 0; i < cloneNumber; i++) {
+							const listClone = list.cloneNode(true)
+
+							if (reverse) {
+								track.insertBefore(listClone, track.firstElementChild)
+							} else {
+								track.appendChild(listClone)
+							}
+						}
+						setGap(track, gap)
+
+						if (reverse) {
+							track.style.justifyContent = 'flex-end'
+						}
 					}
 				}
 
