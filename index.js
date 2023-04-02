@@ -7,14 +7,35 @@
 
 		function initializeTicker() {
 			tracks.forEach((track) => {
+				const windowWidth = window.innerWidth
 				const list = track.firstElementChild
-				const gap = parseInt(track.getAttribute('cc-ticker-gap')) || 0
-				const speed = parseFloat(track.getAttribute('cc-ticker-speed')) || 10
+				let gap = setGapFromBreakpoint(track) || 0
+				const speed = parseFloat(track.getAttribute('ticker-speed')) || 10
 				const pauseOnHover =
-					track.getAttribute('cc-ticker-pause') === 'true' || false
-				const reverse =
-					track.getAttribute('cc-ticker-reverse') === 'true' || false
+					track.getAttribute('ticker-pause') === 'true' || false
+				const reverse = track.getAttribute('ticker-reverse') === 'true' || false
 				let isPaused = false
+
+				function setGapFromBreakpoint(elem) {
+					const elementGap = {
+						mobile: track.getAttribute('ticker-mobile-gap'),
+						tablet: track.getAttribute('ticker-tablet-gap'),
+					}
+
+					const ranges = {
+						mobile: windowWidth > 0 && windowWidth <= 479,
+						tablet:
+							elementGap.tablet && windowWidth > 479 && windowWidth <= 1024,
+					}
+
+					if (elementGap.mobile && ranges.mobile) {
+						return parseInt(elementGap.mobile)
+					} else if (elementGap.tablet && ranges.tablet) {
+						return parseInt(elementGap.tablet)
+					} else {
+						return parseInt(track.getAttribute('ticker-gap'))
+					}
+				}
 
 				function setGap(element, gap) {
 					element.setAttribute('style', `gap: ${gap}px;`)
@@ -23,7 +44,6 @@
 				function cloneList() {
 					setGap(list, gap)
 
-					const windowWidth = window.innerWidth
 					const listWidth = list.clientWidth
 
 					// Remove existing clones
@@ -32,7 +52,7 @@
 						.forEach((listClone) => track.removeChild(listClone))
 
 					if (listWidth < windowWidth) {
-						const cloneNumber = Math.round((windowWidth * 2) / listWidth - 1)
+						const cloneNumber = Math.round((windowWidth * 3) / listWidth - 1)
 
 						for (let i = 0; i < cloneNumber; i++) {
 							const listClone = list.cloneNode(true)
